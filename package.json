@@ -1,15 +1,24 @@
 {
-  "name": "app",
-  "version": "1.0.50",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
-  },
-  "dependencies": {
-    "elysia": "latest"
-  },
-  "devDependencies": {
-    "bun-types": "latest"
-  },
-  "module": "src/index.js"
+	"name": "api-boilerplate",
+	"version": "1.0.50",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"dev": "bun run --watch src/index.ts",
+		"db:generate": "prisma generate",
+		"db:migrate": "prisma migrate dev",
+		"db:studio": "prisma studio"
+	},
+	"dependencies": {
+		"@elysiajs/cookie": "^0.8.0",
+		"@elysiajs/jwt": "^1.2.0",
+		"@elysiajs/swagger": "latest",
+		"@prisma/client": "latest",
+		"elysia": "latest"
+	},
+	"devDependencies": {
+		"bun-types": "latest",
+		"typescript": "latest",
+		"prisma": "latest"
+	},
+	"module": "src/index.js"
 }
