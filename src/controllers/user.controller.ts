@@ -19,6 +19,22 @@ export const userController = new Elysia({ prefix: "/users" })
 					name: true,
 					createdAt: true,
 					updatedAt: true,
+					addressId: true,
+					document: true,
+					birthday: true,
+					address: {
+						select: {
+							id: true,
+							street: true,
+							number: true,
+							complement: true,
+							neighborhood: true,
+							city: true,
+							state: true,
+							country: true,
+							zipCode: true,
+						},
+					},
 				},
 			});
 		},
@@ -45,6 +61,20 @@ export const userController = new Elysia({ prefix: "/users" })
 					name: true,
 					createdAt: true,
 					updatedAt: true,
+					addressId: true,
+					address: {
+						select: {
+							id: true,
+							street: true,
+							number: true,
+							complement: true,
+							neighborhood: true,
+							city: true,
+							state: true,
+							country: true,
+							zipCode: true,
+						},
+					},
 				},
 			});
 
@@ -69,22 +99,61 @@ export const userController = new Elysia({ prefix: "/users" })
 			user,
 		}: AuthType & {
 			params: { id: string };
-			body: Partial<{ name: string; email: string }>;
+			body: Partial<{
+				name: string;
+				email: string;
+				address?: {
+					street: string;
+					number: string;
+					complement?: string;
+					neighborhood: string;
+					city: string;
+					state: string;
+					country: string;
+					zipCode: string;
+				};
+			}>;
 		}) => {
 			// Users can only update their own data unless they're admin
 			if (user.role !== "ADMIN" && user.sub !== id) {
 				throw new Error("Forbidden: Cannot modify other user data");
 			}
 
+			const { address, ...userData } = body;
+
 			const updatedUser = await prisma.user.update({
 				where: { id },
-				data: body,
+				data: {
+					...userData,
+					...(address && {
+						address: {
+							upsert: {
+								create: address,
+								update: address,
+							},
+						},
+					}),
+				},
 				select: {
 					id: true,
 					email: true,
 					name: true,
 					createdAt: true,
 					updatedAt: true,
+					addressId: true,
+					address: {
+						select: {
+							id: true,
+							street: true,
+							number: true,
+							complement: true,
+							neighborhood: true,
+							city: true,
+							state: true,
+							country: true,
+							zipCode: true,
+						},
+					},
 				},
 			});
 
@@ -110,6 +179,7 @@ export const userController = new Elysia({ prefix: "/users" })
 				throw new Error("Forbidden: Only admins can delete users");
 			}
 
+			// Delete the user (Prisma will handle the cascade delete of the address)
 			await prisma.user.delete({
 				where: { id },
 			});

@@ -2,20 +2,23 @@ import { Elysia, t } from "elysia";
 import { jwtSetup } from "../lib/jwt";
 import { hashPassword, verifyPassword } from "../lib/password";
 import prisma from "../lib/prisma";
-
-const userResponseSchema = t.Object({
-	id: t.String(),
-	email: t.String(),
-	name: t.String(),
-	role: t.String(),
-	createdAt: t.String(),
-	updatedAt: t.String(),
-});
+import { addressSchema } from "../validations/address";
+import { userResponseSchema } from "../validations/user";
 
 const loginResponseSchema = t.Object({
 	token: t.String(),
 	user: userResponseSchema,
 });
+
+const transformAddress = (address: any) => {
+	if (!address) return undefined;
+	const { id, createdAt, updatedAt, ...rest } = address;
+	return rest;
+};
+
+const formatDate = (date: Date | null) => {
+	return date ? date.toISOString() : new Date().toISOString();
+};
 
 export const authController = new Elysia()
 	.use(jwtSetup)
@@ -36,7 +39,7 @@ export const authController = new Elysia()
 		"/auth/register",
 		async ({ body, jwt }) => {
 			try {
-				const { email, password, name } = body;
+				const { email, password, name, document, birthday, address } = body;
 
 				// Check if user exists
 				const existingUser = await prisma.user.findUnique({
@@ -47,14 +50,24 @@ export const authController = new Elysia()
 					throw new Error("User already exists");
 				}
 
-				// Create new user
+				// Create new user with optional address
 				const hashedPassword = await hashPassword(password);
 				const user = await prisma.user.create({
 					data: {
 						email,
 						password: hashedPassword,
 						name,
+						document,
+						birthday: new Date(birthday),
 						role: "USER",
+						...(address && {
+							address: {
+								create: address,
+							},
+						}),
+					},
+					include: {
+						address: true,
 					},
 				});
 
@@ -72,9 +85,12 @@ export const authController = new Elysia()
 						id: user.id,
 						email: user.email,
 						name: user.name,
+						document: user.document || "",
+						birthday: formatDate(user.birthday),
 						role: user.role,
 						createdAt: user.createdAt.toISOString(),
 						updatedAt: user.updatedAt.toISOString(),
+						address: transformAddress(user.address),
 					},
 				};
 			} catch (error) {
@@ -88,13 +104,16 @@ export const authController = new Elysia()
 				email: t.String({ format: "email" }),
 				password: t.String({ minLength: 6 }),
 				name: t.String({ minLength: 2 }),
+				document: t.String(),
+				birthday: t.String(),
+				address: t.Optional(addressSchema),
 			}),
 			response: loginResponseSchema,
 			detail: {
 				tags: ["Auth"],
 				summary: "Register a new user",
 				description:
-					"Creates a new user account and returns an authentication token",
+					"Creates a new user account with optional address and returns an authentication token",
 			},
 		},
 	)
@@ -106,6 +125,9 @@ export const authController = new Elysia()
 
 				const user = await prisma.user.findUnique({
 					where: { email },
+					include: {
+						address: true,
+					},
 				});
 
 				if (!user || !(await verifyPassword(password, user.password))) {
@@ -126,9 +148,12 @@ export const authController = new Elysia()
 						id: user.id,
 						email: user.email,
 						name: user.name,
+						document: user.document || "",
+						birthday: formatDate(user.birthday),
 						role: user.role,
 						createdAt: user.createdAt.toISOString(),
 						updatedAt: user.updatedAt.toISOString(),
+						address: transformAddress(user.address),
 					},
 				};
 			} catch (error) {
@@ -169,6 +194,9 @@ export const authController = new Elysia()
 
 				const user = await prisma.user.findUnique({
 					where: { id: payload.sub as string },
+					include: {
+						address: true,
+					},
 				});
 
 				if (!user) {
@@ -180,9 +208,12 @@ export const authController = new Elysia()
 						id: user.id,
 						email: user.email,
 						name: user.name,
+						document: user.document || "",
+						birthday: formatDate(user.birthday),
 						role: user.role,
 						createdAt: user.createdAt.toISOString(),
 						updatedAt: user.updatedAt.toISOString(),
+						address: transformAddress(user.address),
 					},
 				};
 			} catch (error) {
