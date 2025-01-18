@@ -12,9 +12,27 @@ export const authMiddleware = new Elysia()
 		}
 
 		const token = authHeader.split(" ")[1];
-		const payload = (await jwt.verify(token)) as JWTPayload;
-
-		if (!payload) {
+		let payload: JWTPayload;
+		
+		try {
+			const verifiedToken = await jwt.verify(token);
+			if (!verifiedToken || typeof verifiedToken !== 'object') {
+				throw new Error("Invalid token verification result");
+			}
+			
+			payload = {
+				sub: verifiedToken.sub as string,
+				email: verifiedToken.email as string,
+				role: verifiedToken.role as string,
+				iat: verifiedToken.iat as number,
+				exp: verifiedToken.exp as number
+			};
+			
+			if (!payload.role) {
+				throw new Error("Invalid token payload structure");
+			}
+		} catch (error) {
+			console.error("JWT verification failed:", error);
 			throw new Error("Unauthorized: Invalid token");
 		}
 
